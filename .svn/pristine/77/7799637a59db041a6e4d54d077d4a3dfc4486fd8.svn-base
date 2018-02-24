@@ -1,0 +1,17 @@
+1. 安装 jdk, 64位系统 安装 jdk-8u152-windows-x64.exe, 32位系统安装 jdk-8u152-windows-i586.exe
+
+2. 当前目录下建立文本文件 , 写入如下内容 
+  java -jar  CreateInterFace.jar "清单所在的接口文件"  "对应的模型文件"  "生成的文件" 
+  
+如: 
+   java -jar  CreateInterFace.jar  "D:\Temp\ODS-ODS系统-接口设计(文件交换)规格说明书-TFS.xls" "D:\Temp\ODS标准数据结构文档(缓冲层及系统记录层)-TFS.xls"  "D:\Temp\TFS.xls"
+   
+需要生成多个可以写多行, 如: 
+   java -jar  CreateInterFace.jar  "D:\Temp\ODS-ODS系统-接口设计(文件交换)规格说明书-TFS.xls" "D:\Temp\ODS标准数据结构文档(缓冲层及系统记录层)-TFS.xls"  "D:\Temp\TFS.xls"
+   java -jar  CreateInterFace.jar  "D:\Temp\ODS-ODS系统-接口设计(文件交换)规格说明书-HR.xls"  "D:\Temp\ODS标准数据结构文档(缓冲层及系统记录层)-HR.xls"   "D:\Temp\HR.xls"
+   ......
+   
+3. 将文本文件扩展名修改为.bat, 双击运行后 , 查看生成文件 
+
+可以通过 CMD 命令运行 
+

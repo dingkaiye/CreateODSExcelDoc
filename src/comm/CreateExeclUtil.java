@@ -1,0 +1,469 @@
+package comm;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+public class CreateExeclUtil {
+	private static Logger logger = LogManager.getLogger("Execl"); 
+
+	public static Workbook getReadWorkbook(String filepath) {
+	
+		if (filepath == null) {
+			return null;
+		}
+//		InputStream inputStream = null;
+		InputStream inputStream = null;
+		Workbook workbook = null;
+		try {
+			inputStream = new FileInputStream(filepath);
+		} catch (FileNotFoundException e) {
+			logger.error(filepath + " FileNotFoundException: ", e);
+		}
+		if (inputStream != null) {
+			try {
+				// inputStream = new FileInputStream(filepath);
+				if (filepath.endsWith(".xls")) {
+					workbook = new HSSFWorkbook(inputStream);
+				} else if (filepath.endsWith(".xlsx")) {
+					workbook = new XSSFWorkbook(inputStream);
+				} else {
+					workbook = new XSSFWorkbook(inputStream);
+				}
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				logger.error(filepath + " IOException ", e);
+			}
+		} else {
+			logger.warn(filepath + " 不存在, 打开新 WorkBook");
+			if (filepath.endsWith(".xls")) {
+				workbook = new HSSFWorkbook();
+			} else if (filepath.endsWith(".xlsx")) {
+				workbook = new XSSFWorkbook();
+			} else {
+				workbook = new XSSFWorkbook();
+			}
+		}
+		
+		return (Workbook) workbook;
+	}
+	 
+	/**
+	 * 将 workbook 写入文件中
+	 * @param resultWorkbook
+	 * @param outFile
+	 */
+	public static boolean writeWorkbookToFile(Workbook workbook, String outFile) {
+		logger.info("将 workbook 写入文件 " + outFile  + "  开始 ");
+		FileOutputStream fOut =  null;
+		try {
+			File file = new File(outFile);
+			if (file.exists() && file.isFile()) {
+				logger.info(outFile + "已存在, 开始删除文件 ");
+				file.delete();
+				logger.info(outFile + "已存在, 删除文件完成 ");
+			}
+			fOut = new FileOutputStream(outFile);
+			workbook.write(fOut);
+			fOut.flush();  
+			fOut.close();  // 操作结束，关闭文件  
+		} catch (FileNotFoundException e) {
+			logger.error("FileNotFoundException", e);
+			return false;
+		} catch (IOException e) {
+			logger.error("IOException", e);
+			return false;
+		}
+		logger.info("将 workbook 写入文件 " + outFile  + "  完成");
+		return true;
+
+	}
+		// 生成报结构sheet 
+		// 源系统	源表名	源表中文名	字段序号	源字段	标准化字段	源字段中文名	目标数据类型	标准化数据类型	原数据类型	是否入库	是否需要标准化	数据标准编号	数据标准中文名称	空值	函数	默认值	拉链字段	CONSTRAINT	UI	IDX	特殊说明
+
+	public static Sheet CreatTableDefSheet(String SysCode, Sheet sheet, List<TableInfo> tbInfoList) {
+		logger.info("生成报结构sheet 开始 ");
+		int totRowNo = 1; // sheet 行号
+		int tableRow = 0; // 表中字段序号
+		Row row = null;
+		int j = 0;
+		//生成表头 
+		/*row = sheet.createRow(totRowNo);
+		row.createCell(j).setCellValue("源系统");j++;
+		row.createCell(j).setCellValue("源表名");j++;
+		row.createCell(j).setCellValue("源表中文名");j++;
+		row.createCell(j).setCellValue("字段序号");j++;
+		row.createCell(j).setCellValue("源字段");j++;
+		row.createCell(j).setCellValue("标准化字段");j++;
+		row.createCell(j).setCellValue("源字段中文名");j++;
+		row.createCell(j).setCellValue("目标数据类型");j++;
+		row.createCell(j).setCellValue("标准化数据类型");j++;
+		row.createCell(j).setCellValue("原数据类型");j++;
+		row.createCell(j).setCellValue("是否入库");j++;
+		row.createCell(j).setCellValue("是否需要标准化");j++;
+		row.createCell(j).setCellValue("数据标准编号");j++;
+		row.createCell(j).setCellValue("数据标准中文名称");j++;
+		row.createCell(j).setCellValue("空值");j++;
+		row.createCell(j).setCellValue("函数");j++;
+		row.createCell(j).setCellValue("默认值");j++;
+		row.createCell(j).setCellValue("拉链字段");j++;
+		row.createCell(j).setCellValue("CONSTRAINT");j++;
+		row.createCell(j).setCellValue("UI");j++;
+		row.createCell(j).setCellValue("IDX");j++;
+		row.createCell(j).setCellValue("特殊说明");j++;*/
+		
+		for (TableInfo tbInfo : tbInfoList) {
+			String TableEnName = tbInfo.getTabEnName();
+			String TableChName = tbInfo.getTabChName();
+			List<DataLineInfo> dataLineList = tbInfo.getDatalineList();
+			
+			tableRow = 0;
+			for (DataLineInfo dataLine : dataLineList) {
+				totRowNo++;
+				tableRow++;
+				row = sheet.createRow(totRowNo);
+				j = 0;
+				Cell cell = null;
+				// 源系统
+				cell = row.createCell(j);j++;
+				cell.setCellValue(SysCode);
+				// 源表名
+				cell = row.createCell(j);j++;
+				cell.setCellValue(TableEnName);
+				// 源表中文名
+				cell = row.createCell(j);j++;
+				cell.setCellValue(TableChName);
+				// 字段序号
+				cell = row.createCell(j);j++;
+				cell.setCellValue(tableRow);
+				// 源字段
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getEnName());
+				// 标准化字段
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getEnName());
+				// 源字段中文名
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getChName());
+				// 目标数据类型
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getOdsType());
+				// 标准化数据类型
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getOdsType());
+				// 原数据类型
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getType());
+				// 是否入库
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				// 是否需要标准化
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				// 数据标准编号
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getDataStandardNo());
+				// 数据标准中文名称
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getDataStandardName());
+				// 空值
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getIsNull());
+				// 函数
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				// 默认值
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getDefaultValue());
+				// 拉链字段
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				
+				String ispk = dataLine.getIsPK().toUpperCase();
+				if (ispk!=null && "Y".equals(ispk) && "YES".equals(ispk) ){
+					// CONSTRAINT
+					cell = row.createCell(j);j++;
+					cell.setCellValue("Y");
+					// UI
+					cell = row.createCell(j);j++;
+					cell.setCellValue("UI1");
+				}
+				else{
+					// CONSTRAINT
+					cell = row.createCell(j);j++;
+					cell.setCellValue("N");
+					// UI
+					cell = row.createCell(j);j++;
+					cell.setCellValue("");
+				}
+				
+				// IDX
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				
+				// 特殊说明
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dataLine.getDesc());
+				}
+			}
+			logger.info("生成报结构sheet 开始 ");
+			return sheet;
+		}
+		
+	
+		// 生成表清单 Sheet  
+		// 源系统名称	模块	编号	用户名	源表名称	表中文注解	是否入库	重要性	是否需要标准化	缓冲层表名	系统记录层表名	是否全表拉链	入库方式	DBLINK名称	表类型	数据接口增全量标志	增量字段	排序字段	数据时间	初始化数据时间	初始化增量字段	注释、问题、说明	初始化类型	分区表(T)	分区表	物理属性	机构撤并	修改键字	修改键字说明	版本	变更时间
+
+	public static Sheet CreatTableListSheet(String SysCode, String muName, Sheet sheet, List<TableInfo> tbInfoList) {
+		logger.info("生成表清单 Sheet  开始 ");
+		int totRowNo = 1; // sheet 行号
+//		int tableRow = 0; // 表中字段序号
+		Row row = null;
+		Date date = new Date();
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+		String dateNowStr = sdf.format(date);
+		String docVer = "V1.0";
+		int j = 0;
+		//生成表头 
+		/*row = sheet.createRow(totRowNo);
+		row.createCell(j).setCellValue("源系统名称");j++;
+		row.createCell(j).setCellValue("模块");j++;
+		row.createCell(j).setCellValue("编号");j++;
+		row.createCell(j).setCellValue("用户名");j++;
+		row.createCell(j).setCellValue("源表名称");j++;
+		row.createCell(j).setCellValue("表中文注解");j++;
+		row.createCell(j).setCellValue("是否入库");j++;
+		row.createCell(j).setCellValue("重要性");j++;
+		row.createCell(j).setCellValue("是否需要标准化");j++;
+		row.createCell(j).setCellValue("缓冲层表名");j++;
+		row.createCell(j).setCellValue("系统记录层表名");j++;
+		row.createCell(j).setCellValue("是否全表拉链");j++;
+		row.createCell(j).setCellValue("入库方式");j++;
+		row.createCell(j).setCellValue("DBLINK名称");j++;
+		row.createCell(j).setCellValue("表类型");j++;
+		row.createCell(j).setCellValue("数据接口增全量标志");j++;
+		row.createCell(j).setCellValue("增量字段");j++;
+		row.createCell(j).setCellValue("排序字段");j++;
+		row.createCell(j).setCellValue("数据时间");j++;
+		row.createCell(j).setCellValue("初始化数据时间");j++;
+		row.createCell(j).setCellValue("初始化增量字段");j++;
+		row.createCell(j).setCellValue("注释、问题、说明");j++;
+		row.createCell(j).setCellValue("初始化类型");j++;
+		row.createCell(j).setCellValue("分区表(T)");j++;
+		row.createCell(j).setCellValue("分区表");j++;
+		row.createCell(j).setCellValue("物理属性");j++;
+		row.createCell(j).setCellValue("机构撤并");j++;
+		row.createCell(j).setCellValue("修改键字");j++;
+		row.createCell(j).setCellValue("修改键字说明");j++;
+		row.createCell(j).setCellValue("版本");j++;
+		row.createCell(j).setCellValue("变更时间");j++;*/
+
+		
+		for (TableInfo tbInfo : tbInfoList) {
+			String TableEnName = tbInfo.getTabEnName();
+			String TableChName = tbInfo.getTabChName();
+			String model = tbInfo.getModel();  //模块
+//			List<DataLineInfo> dataLineList = tbInfo.getDatalineList();
+
+//			tableRow = 0;
+//			for (DataLineInfo dataLine : dataLineList) {
+				totRowNo++;
+//				tableRow++;
+				row = sheet.createRow(totRowNo);
+				Cell cell = null;
+				//  源系统名称
+				j = 0;
+				cell = row.createCell(j);j++;
+				cell.setCellValue(SysCode);
+				//  模块
+				cell = row.createCell(j);j++;
+				if (model == null || "".equals(model)){
+					cell.setCellValue(muName);
+				}else {
+					cell.setCellValue(model);
+				}
+				//  编号
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  用户名
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  源表名称
+				cell = row.createCell(j);j++;
+				cell.setCellValue(TableEnName);
+				//  表中文注解
+				cell = row.createCell(j);j++;
+				cell.setCellValue(TableChName);
+				//  是否入库
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  重要性
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  是否需要标准化
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  缓冲层表名
+				cell = row.createCell(j);j++;
+				cell.setCellValue("T_" + SysCode + "_" + TableEnName);
+				//  系统记录层表名
+				cell = row.createCell(j);j++;
+				cell.setCellValue("O_" + SysCode + "_" + TableEnName);
+				//  是否全表拉链
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  入库方式
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  DBLINK名称
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  表类型
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  数据接口增全量标志
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  增量字段
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  排序字段
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  数据时间
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  初始化数据时间
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  初始化增量字段
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  注释、问题、说明
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  初始化类型
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  分区表(T)
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  分区表
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  物理属性
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  机构撤并
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  修改键字
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  修改键字说明
+				cell = row.createCell(j);j++;
+				cell.setCellValue("");
+				//  版本
+				cell = row.createCell(j);j++;
+				cell.setCellValue(docVer);
+				//  变更时间
+				cell = row.createCell(j);j++;
+				cell.setCellValue(dateNowStr);
+//			}
+		}
+		logger.info("生成表清单 Sheet  完成 ");
+		return sheet;
+	}
+
+	// 生成枚举值 sheet
+	// 源系统 源表名 源表中文名 字段名 字段中文名 字段取值 取值含义 备注
+
+	public static Sheet CreatEmenuSheet(String SysCode, Sheet sheet, List<TableInfo> tbInfoList) {
+		logger.info("生成枚举值 sheet  开始 ");
+		int totRowNo = 1; // sheet 行号
+//		int tableRow = 0; // 表中字段序号
+		Row row = null;
+		int j = 0;
+		//生成表头 
+		/*row = sheet.createRow(totRowNo);
+		row.createCell(j).setCellValue("源系统");j++;
+		row.createCell(j).setCellValue("源表名");j++;
+		row.createCell(j).setCellValue("源表中文名");j++;
+		row.createCell(j).setCellValue("字段名");j++;
+		row.createCell(j).setCellValue("字段中文名");j++;
+		row.createCell(j).setCellValue("字段取值");j++;
+		row.createCell(j).setCellValue("取值含义");j++;
+		row.createCell(j).setCellValue("备注");j++;*/
+		
+		for (TableInfo tbInfo : tbInfoList) {
+			String TableEnName = tbInfo.getTabEnName();
+			String TableChName = tbInfo.getTabChName();
+			List<DataLineInfo> dataLineList = tbInfo.getDatalineList();
+			
+//			tableRow = 0;
+			for (DataLineInfo dataLine : dataLineList) {
+				
+//				tableRow++;
+				String colEnName = dataLine.getEnName();
+				String colChName = dataLine.getChName();
+				String Desc = dataLine.getDesc();
+				List<ColumnEnum>  enums = dataLine.getEnums();
+				if(enums != null && enums.size() != 0){
+					for (ColumnEnum curEnum : enums) {
+						totRowNo++;
+						row = sheet.createRow(totRowNo);
+						j = 0;
+						row.createCell(j).setCellValue(SysCode);j++; // 源系统
+						row.createCell(j).setCellValue(TableEnName);j++; // 源表名
+						row.createCell(j).setCellValue(TableChName);j++; // 源表中文名
+						row.createCell(j).setCellValue(colEnName);j++; // 字段名
+						row.createCell(j).setCellValue(colChName);j++; // 字段中文名
+						row.createCell(j).setCellValue(curEnum.getKey());j++; // 字段取值
+						row.createCell(j).setCellValue(curEnum.getValue());j++; // 取值含义
+						j = j + 4;
+						row.createCell(j).setCellValue(Desc);j++; // 备注
+					}
+				}
+			}
+		}
+		logger.info("生成枚举值 sheet  完成");
+		return sheet;
+	}
+	 
+	
+	/**
+     * 复制文件
+     * @param fromFile
+     * @param toFile
+     * @throws IOException 
+     */
+    public static void copyFile(String fromFileName, String toFileName) throws IOException{
+    	File fromFile = new File(fromFileName);
+    	File toFile = new File(toFileName);
+    	
+        FileInputStream ins = new FileInputStream(fromFile);
+        FileOutputStream out = new FileOutputStream(toFile);
+        byte[] b = new byte[1024];
+        int n = 0;
+        while((n=ins.read(b))!=-1){
+            out.write(b, 0, n);
+        }
+        ins.close();
+        out.close();
+    }
+}

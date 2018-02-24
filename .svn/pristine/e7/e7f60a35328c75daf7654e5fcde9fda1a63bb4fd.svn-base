@@ -1,0 +1,528 @@
+package com.ods.tfs;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import jxl.Cell;
+import jxl.Sheet;
+import jxl.Workbook;
+import jxl.format.Border;
+import jxl.format.BorderLineStyle;
+import jxl.format.Colour;
+import jxl.read.biff.BiffException;
+import jxl.write.Label;
+import jxl.write.WritableCellFormat;
+import jxl.write.WritableFont;
+import jxl.write.WritableSheet;
+import jxl.write.WritableWorkbook;
+import jxl.write.WriteException;
+import jxl.write.biff.RowsExceededException;
+
+public class CreateTfsInterface {
+	private static final String endStr = "_[YYYYMMDD]"; 
+	private static final String endStrA = "_YYYYMMDD"; 
+	private static final String endStrB= "_yyyymmdd"; 
+	
+	private static final int endStrLen = endStr.length();
+	public static void  main (String[] args) throws IOException, WriteException, BiffException {
+	
+		String listFile = args[0];  // 比如  D:\Temp\ODS-ODS系统-接口设计(文件交换)规格说明书-TFS.xls
+		String dataFile = args[1];  // 比如  D:\Temp\ODS标准数据结构文档(缓冲层及系统记录层)-TFS.xls
+		String outFile = args[2];   // 比如  D:\Temp\TFS.xls
+	
+		boolean errorFlg = false;
+		if(listFile == null || "".equals(listFile)){
+			System.out.println("接口规格说明文件不能为空\n");
+			errorFlg = true;
+		}
+		if(dataFile == null || "".equals(dataFile)){
+			System.out.println("数据结构文件不能为空\n");
+			errorFlg = true;
+		}
+		if(outFile == null || "".equals(outFile)){
+			System.out.println("输出文件 不能为空\n");
+			errorFlg = true;
+		}
+		
+		File file=new File(listFile);
+        if(!file.exists() || !file.isFile()){
+        	System.out.println("接口规格说明文件: " + listFile + " 不存在");
+        	errorFlg = true;
+		}
+        file=new File(dataFile);
+        if(!file.exists() || !file.isFile()){
+        	System.out.println("数据结构文件        : " + dataFile + " 不存在");
+        	errorFlg = true;
+		}
+
+        
+		if(errorFlg){
+			System.out.println("   请检查!!!");
+			System.exit(-1);
+		}
+		
+		System.out.println("接口规格说明文件:" + listFile);
+		System.out.println("数据结构文件        :" + dataFile);
+		System.out.println("输出文件                :" + outFile);
+		
+		createTfsInterfaceFile ( listFile, dataFile, outFile);
+		
+		System.out.println("Complate");
+		System.exit(0);
+
+	}
+	
+	private static  void createTfsInterfaceFile (String listFile, String dataFile, String outFile) throws BiffException, IOException{
+		
+		//删除文件 
+		File file=new File(outFile);
+        if(file.exists() && file.isFile()){
+        	System.out.println(outFile + "已存在, 开始删除文件 ");
+            file.delete();
+            System.out.println(outFile + "已存在, 删除文件完成 ");
+		}
+        
+        //复制文件 
+        copyFile(listFile , outFile);
+        WritableWorkbook outWorkbook = null;
+		
+		
+		try {
+			// 读取列表
+			InputStream instream = new FileInputStream(listFile);
+			jxl.Workbook readwb = Workbook.getWorkbook(instream);
+
+			// 获取第一张目录表
+			Sheet readsheet = readwb.getSheet("目录");
+
+			// 获取Sheet表中所包含的总行数
+			int rsRows = readsheet.getRows();
+			int rsColumns = readsheet.getColumns();
+			System.out.println("maxrows:" + rsRows + "   maxColumns:"+ rsColumns);
+
+			List<FileInfo> fileInfoList = new ArrayList<FileInfo>();
+			Cell cell = null;
+			
+			//寻找起始单元格 
+			System.out.println("寻找起始单元格");
+			int i = 0, j = 0; 
+			int basei = 0, basej = -1;
+			for(i=0; i<rsRows; i++){
+				for(j=0; j<rsColumns; j++){
+					cell = readsheet.getCell(j, i);
+					if(cell != null) {
+						System.out.println( i + "," + j + ":[" + cell.getContents() +"]");
+						if("".equals(cell.getContents()) ){
+							continue;
+						}else if (! "序号".equals(cell.getContents())){
+							continue;
+						}else if("序号".equals(cell.getContents())){
+							basej = j;
+							break;
+						}
+					}else{
+						continue;
+					}
+				}
+				if(basej != -1 ){
+					basei = i;
+					break;
+				}
+			}
+			
+			System.out.println("起始单元格坐标:" + basei + ", " + basej);
+			System.out.println("单元格内容:" + readsheet.getCell(basej , basei).getContents() ) ;
+			
+			fileInfoList.clear();
+			for ( i = basei+1; i < rsRows; i++) {
+				// for (int j = 0; j < rsColumns; j++)
+				{
+//					System.out.println("读取列表第:" + i + "行");
+					if( "".equals(readsheet.getCell(basej, i).getContents()) ) {
+						continue;
+					}
+					
+					FileInfo fileInfo = new FileInfo();
+					
+					String seqNo        = readsheet.getCell(basej + 0, i).getContents();
+					String sysCode      = readsheet.getCell(basej + 1, i).getContents();
+					String fileName     = readsheet.getCell(basej + 2, i).getContents();
+					if(fileName != null ) { 
+						if (fileName.endsWith(endStrA)) {
+							fileName = fileName.substring(0, fileName.length() - endStrA.length());
+						}
+						else if (fileName.endsWith(endStrB)) {
+							fileName = fileName.substring(0, fileName.length() - endStrB.length());
+						}
+					}
+					
+					
+					String desc         = readsheet.getCell(basej + 3, i).getContents();
+					String provider     = readsheet.getCell(basej + 4, i).getContents();
+					String caller       = readsheet.getCell(basej + 5, i).getContents();
+					String path         = readsheet.getCell(basej + 6, i).getContents();
+					String fileType     = readsheet.getCell(basej + 7, i).getContents();
+					String fileCode     = readsheet.getCell(basej + 8, i).getContents();
+					String delimiter    = readsheet.getCell(basej + 9, i).getContents();
+					String state        = readsheet.getCell(basej + 10, i).getContents();
+					String incrementFlg = readsheet.getCell(basej + 11, i).getContents();
+					
+					fileInfo.setSeqNo       (seqNo       );
+					fileInfo.setSysCode     (sysCode     );
+					fileInfo.setFileName    (fileName    );
+					fileInfo.setDesc        (desc        );
+					fileInfo.setProvider    (provider    );
+					fileInfo.setCaller      (caller      );
+					fileInfo.setPath        (path        );
+					fileInfo.setFileType    (fileType    );
+					fileInfo.setFileCode    (fileCode    );
+					fileInfo.setDelimiter   (delimiter   );
+					fileInfo.setState       (state       );
+					fileInfo.setIncrementFlg(incrementFlg);
+					fileInfoList.add(fileInfo);
+				}
+			}
+			
+			System.out.println("读取列表完成, 共读取 " + i + " 行");
+			InputStream dataStream = new FileInputStream(dataFile);
+			jxl.Workbook dataWb = Workbook.getWorkbook(dataStream);
+			Sheet dataSheet = dataWb.getSheet("源字段");
+
+			int icnt = 4;
+			File outXlsFile = new File(outFile);
+//			outWorkbook = Workbook.createWorkbook(outXlsFile);
+			outWorkbook = Workbook.createWorkbook(outXlsFile, readwb);
+			outWorkbook.copy(readwb);
+			
+			for(FileInfo fileInfocur : fileInfoList){
+				String fileName = fileInfocur.getFileName();
+				String Name = null;
+				if(fileName.endsWith(endStr)){
+					Name = fileName.substring(0, fileName.length() - endStrLen);
+				}else{
+					Name = fileName;
+				}
+				WritableSheet outSheet = outWorkbook.createSheet(Name, icnt);
+				writeSheetContents(dataSheet, fileInfocur, outSheet, outWorkbook);
+				icnt++;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}finally{
+			outWorkbook.write();
+			try {
+				outWorkbook.close();
+			} catch (WriteException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		System.out.println(outFile + " Complate");
+		
+	}
+	
+	
+	
+	public static void writeSheetContents( Sheet datasheet, FileInfo fileInfo, 
+			WritableSheet outSheet, 
+			WritableWorkbook outWorkbook ) 
+			throws RowsExceededException, WriteException, IOException{
+		String fileName = fileInfo.getFileName();
+		String filePath = fileInfo.getPath();
+		String Name = null;
+		if(fileName.endsWith(endStr)){
+			Name = fileName.substring(0, fileName.length() - endStrLen);
+		}else{
+			Name = fileName;
+		}
+		
+		System.out.println("Name :" + Name + " filePath:" + filePath );
+		
+		// 创建 sheet
+		int row = 0 , col = 0 ;
+		
+		//设置Title 格式 
+		WritableFont bold = new WritableFont(WritableFont.ARIAL,10,WritableFont.BOLD);//设置字体种类和黑体显示,字体为Arial,字号大小为10,采用黑体显示
+        WritableCellFormat headFormate = new WritableCellFormat(bold);//生成一个单元格样式控制对象
+        headFormate.setAlignment(jxl.format.Alignment.LEFT);//单元格中的内容水平方向居左
+        headFormate.setBorder(Border.ALL, BorderLineStyle.THIN, Colour.BLACK);
+        headFormate.setVerticalAlignment(jxl.format.VerticalAlignment.CENTRE);//单元格的内容垂直方向居中
+		
+        //设置 head格式
+        WritableFont font = new WritableFont(WritableFont.createFont("华文中宋"), 11, WritableFont.BOLD);// 字体样式
+        WritableCellFormat titleFormate = new WritableCellFormat(font);
+        titleFormate.setVerticalAlignment(jxl.format.VerticalAlignment.CENTRE);
+        titleFormate.setBorder(Border.ALL, BorderLineStyle.THIN, Colour.BLACK); //BorderLineStyle边框
+        outWorkbook.setColourRGB(Colour.YELLOW, 255, 192, 0x00);
+        titleFormate.setBackground(Colour.YELLOW);
+        
+        // 设置普通单元格格式
+        WritableFont comm = new WritableFont(WritableFont.createFont("华文中宋"), 9, WritableFont.NO_BOLD);// 字体样式
+        WritableCellFormat commFormate = new WritableCellFormat(comm);
+        commFormate.setAlignment(jxl.format.Alignment.LEFT);
+        commFormate.setVerticalAlignment(jxl.format.VerticalAlignment.CENTRE);
+        commFormate.setBorder(Border.ALL, BorderLineStyle.THIN, Colour.BLACK); //BorderLineStyle边框
+        
+        // 设置表结构描述部分 格式
+        WritableFont font2 = new WritableFont(WritableFont.createFont("华文中宋"), 11, WritableFont.NO_BOLD);// 字体样式
+        WritableCellFormat wcf2 = new WritableCellFormat(font2);
+        wcf2.setVerticalAlignment(jxl.format.VerticalAlignment.CENTRE);
+        wcf2.setBorder(Border.ALL, BorderLineStyle.THIN, Colour.BLACK); //BorderLineStyle边框
+        outWorkbook.setColourRGB(Colour.BLUE, 68, 84, 106);
+        wcf2.setBackground(Colour.BLUE);
+        
+		// 生成  sheet 表头 
+        
+        
+        Label title = null;
+        title = new Label(col, row, "数据文件定义", titleFormate); // 数据文件定义
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 600, false);//设置第一行的高度
+        outSheet.mergeCells(col, row, 5, 0); 
+        row ++; col = 0;
+		
+        // 文件路径
+        
+        title = new Label(col, row, "文件路径", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false); //设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, filePath, commFormate ));
+        row ++; col = 0;
+        
+		// 文件基本名称
+        title = new Label(col, row, "文件基本名称", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, fileName + endStr, commFormate));
+        row ++; col = 0;
+        
+		// 单个文件大小
+        title = new Label(col, row, "单个文件大小", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "", commFormate));
+        row ++; col = 0;
+        
+		// 多个文件命名规则
+        title = new Label(col, row, "多个文件命名规则", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "", commFormate));
+        row ++; col = 0;
+        
+		// 文件编码
+        title = new Label(col, row, "文件编码", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, fileInfo.getFileCode(), commFormate));
+        row ++; col = 0;
+        
+		// 文件格式
+        title = new Label(col, row, "文件格式", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, fileInfo.getFileType(), commFormate));
+        row ++; col = 0;
+        
+		// 分隔符
+        title = new Label(col, row, "分隔符", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, fileInfo.getDelimiter(), commFormate));
+        row ++; col = 0;
+        
+		// 内容起始行
+        title = new Label(col, row, "内容起始行", headFormate); 
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "2", commFormate));
+        row ++; col = 0;
+        
+		// 文件头描述
+        title = new Label(col, row, "文件头描述", headFormate); // 文件头描述
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "第一行：字段定义", commFormate));
+        row ++; col = 0;
+        
+		// 文件尾描述
+        title = new Label(col, row, "文件尾描述", headFormate); //文件尾描述
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "", commFormate));
+        row ++; col = 0;
+       
+		// 读取 表结构 生成 :  英文名称	中文名称	数据类型	是否必输	约束条件	备注
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.addCell(new Label(col, row, "英文名称", wcf2)); col ++;
+        outSheet.addCell(new Label(col, row, "中文名称", wcf2)); col ++;
+        outSheet.addCell(new Label(col, row, "数据类型", wcf2)); col ++;
+        outSheet.addCell(new Label(col, row, "是否必输", wcf2)); col ++;
+        outSheet.addCell(new Label(col, row, "约束条件", wcf2)); col ++;
+        outSheet.addCell(new Label(col, row, "备注", wcf2)); col ++;
+        
+        row ++; col = 0 ;
+        
+     // 获取Sheet表中所包含的总行数
+     	int rsRows = datasheet.getRows();
+     	int rsColumns = datasheet.getColumns();
+     	Cell cell = null;
+     	int entabColumn = 1,  chtabColumn = 2,  enColumn = 4, chColumn = 6, dataTypeColumn = 9, inNullColumn = 13, constraintColumn = 19, remarkColumn = 21 ;
+		for (int j = 0; j < rsColumns; j++) {
+			cell = datasheet.getCell(j, 0);
+			String cont = cell.getContents().trim();
+			switch (cont) {
+			// 硬代码, 注意 此处
+			case "源表名":
+				entabColumn = j; break;
+			case "源表中文名":
+				chtabColumn = j; break;
+			case "源字段":
+				enColumn = j; break;
+			case "源字段中文名":
+				chColumn = j; break;
+			case "原数据类型":
+				dataTypeColumn = j;	break;
+			case "空值":
+				inNullColumn = j; break;
+			case "UI":
+				constraintColumn = j; break;
+			case "特殊说明":
+				remarkColumn = j; break;
+			default:break;
+			}
+		}
+     	
+		for (int i = 1; i < rsRows; i++) {
+			{
+				// 英文名称	
+				cell = datasheet.getCell(entabColumn, i);   
+				String tableEnName = cell.getContents();
+				if(tableEnName.equals(Name)){
+					String tableChName = datasheet.getCell(chtabColumn, i).getContents(); // 表中文名称
+					String colEnName = datasheet.getCell(enColumn, i).getContents();   // 字段中文名称 
+					String colChName = datasheet.getCell(chColumn, i).getContents();   // 英文名称
+					String dataType = datasheet.getCell(dataTypeColumn, i).getContents();    // 数据类型
+					
+					String inNull = datasheet.getCell(inNullColumn, i).getContents();
+					if ("N".equals(inNull)){
+						inNull = "Y";
+					} else {
+						inNull = "";
+					}
+					
+					String Constraint = datasheet.getCell(constraintColumn, i).getContents();
+					String remark = datasheet.getCell(remarkColumn, i).getContents();    //备注
+					
+					System.out.println(tableEnName + " " + tableChName + " " + colEnName + " " + colChName + "  " +  dataType + "  " +  inNull + " " + Constraint + "  " + remark );
+					//向 outSheet 添加数据
+					col = 0;
+					outSheet.setRowView(row, 300, false);//设置高度
+					outSheet.addCell(new Label(col, row, colEnName, commFormate)); col ++;
+					outSheet.addCell(new Label(col, row, colChName, commFormate)); col ++;
+					outSheet.addCell(new Label(col, row, dataType, commFormate)); col ++;
+					outSheet.addCell(new Label(col, row, inNull, commFormate)); col ++;
+					outSheet.addCell(new Label(col, row, Constraint, commFormate)); col ++;
+					outSheet.addCell(new Label(col, row, remark, commFormate)); col ++;
+					row ++; col = 0 ;
+				}
+			}
+		}
+        
+		// 生成表尾
+		
+		// 控制文件定义
+        title = new Label(col, row, "控制文件定义", titleFormate); // 控制文件定义
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col , row,  5, row); 
+        row ++; col = 0;
+        
+		// 控制文件基本名称	accountlist_ctl_[yyyyMMdd]	
+        title = new Label(col, row, "控制文件基本名称", headFormate); // 控制文件基本名称
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, Name + "_ctl" + endStr, commFormate ));
+        row ++; col = 0;
+        
+		// 多个文件命名规则		
+        title = new Label(col, row, "多个文件命名规则", headFormate); // 控制文件基本名称
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "", commFormate ));
+        row ++; col = 0;
+		// 控制文件描述	第一行：文件记录总条数	
+        title = new Label(col, row, "控制文件描述", headFormate); // 控制文件基本名称
+        outSheet.addCell(title);
+        outSheet.setRowView(row, 500, false);//设置高度
+        outSheet.mergeCells(col + 1, row,  5, row); 
+        outSheet.addCell(new Label(col + 1, row, "第一行：文件记录总条数", commFormate ));
+        row ++; col = 0;
+        
+        //共 6 列 , 使用硬代码 
+        //设置宽度
+        outSheet.setColumnView(0, 35);
+        outSheet.setColumnView(1, 40);
+        outSheet.setColumnView(2, 20);
+        outSheet.setColumnView(3, 20);
+        outSheet.setColumnView(4, 20);
+        outSheet.setColumnView(5, 20);
+        
+	}
+	
+	
+	
+	/**
+     * 复制文件
+     * @param fromFile
+     * @param toFile
+     * @throws IOException 
+     */
+    private static void copyFile(String fromFileName, String toFileName) throws IOException{
+    	File fromFile = new File(fromFileName);
+    	File toFile = new File(toFileName);
+    	
+        FileInputStream ins = new FileInputStream(fromFile);
+        FileOutputStream out = new FileOutputStream(toFile);
+        byte[] b = new byte[1024];
+        int n = 0;
+        while((n=ins.read(b))!=-1){
+            out.write(b, 0, n);
+        }
+        ins.close();
+        out.close();
+    }
+	
+    /**
+     * 合并文件, 将 sourceFile 合并 到 targetFile中
+     * @param sourceFile
+     * @param targetFile
+     */
+    private static void mergeFile (String sourceFileA, String sourceFileB, String targetFile){
+    	
+    	
+    }
+    
+    
+    
+    
+    
+}
